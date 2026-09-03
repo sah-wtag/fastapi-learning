@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import FastAPI, HTTPException, Response, status, Depends
 from sqlalchemy.orm import Session
 from . import models, schemas
@@ -13,36 +14,38 @@ def root():
     return {"message": "Welcome to a new fastapi projects"}
 
 
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.PostResponse])
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
 
 
-@app.get("/posts/latest")
+@app.get("/posts/latest", response_model=schemas.PostResponse)
 def latest_posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
     latest = posts[-1]
-    return {"data": latest}
+    return latest
 
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id).first()
 
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    return {"post_details": post}
+    return post
 
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse
+)
 def create_post(post: schemas.CreatePost, db: Session = Depends(get_db)):
     new_post = models.Post(**post.dict())
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return {"data": new_post}
+    return new_post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -57,7 +60,11 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}", status_code=status.HTTP_201_CREATED)
+@app.put(
+    "/posts/{id}",
+    status_code=status.HTTP_201_CREATED,
+    response_model=schemas.PostResponse,
+)
 def update_post(id: int, post: schemas.CreatePost, db: Session = Depends(get_db)):
     post_query = db.query(models.Post).filter(models.Post.id == id)
     updated_post = post_query.first()
@@ -72,4 +79,4 @@ def update_post(id: int, post: schemas.CreatePost, db: Session = Depends(get_db)
 @app.get("/sqlalchemy")
 def test_posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
