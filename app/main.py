@@ -1,82 +1,18 @@
-from typing import List
 from fastapi import FastAPI, HTTPException, Response, status, Depends
 from sqlalchemy.orm import Session
-from . import models, schemas
+from . import models, schemas, utils
 from .database import engine, get_db
+from .routers import user, post
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
 
+app.include_router(post.router)
+app.include_router(user.router)
+
+
 @app.get("/")
 def root():
     return {"message": "Welcome to a new fastapi projects"}
-
-
-@app.get("/posts", response_model=List[schemas.PostResponse])
-def get_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return posts
-
-
-@app.get("/posts/latest", response_model=schemas.PostResponse)
-def latest_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    latest = posts[-1]
-    return latest
-
-
-@app.get("/posts/{id}", response_model=schemas.PostResponse)
-def get_post(id: int, db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == id).first()
-
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-
-    return post
-
-
-@app.post(
-    "/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse
-)
-def create_post(post: schemas.CreatePost, db: Session = Depends(get_db)):
-    new_post = models.Post(**post.dict())
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    return new_post
-
-
-@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == id)
-    if post.first() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-
-    post.delete()
-    db.commit()
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@app.put(
-    "/posts/{id}",
-    status_code=status.HTTP_201_CREATED,
-    response_model=schemas.PostResponse,
-)
-def update_post(id: int, post: schemas.CreatePost, db: Session = Depends(get_db)):
-    post_query = db.query(models.Post).filter(models.Post.id == id)
-    updated_post = post_query.first()
-
-    if updated_post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    post_query.update(post.dict(), synchronize_session=False)
-    db.commit()
-    return post_query.first()
-
-
-@app.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return posts
