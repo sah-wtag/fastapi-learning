@@ -1,34 +1,11 @@
-from random import randrange
-import stat
-from typing import Optional
-from fastapi import FastAPI, HTTPException, Response, status
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Response, status, Depends
+from sqlalchemy.orm import Session
+from . import models, schemas
+from .database import engine, get_db
+
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-
-class Post(BaseModel):
-    title: str
-    content: str
-    rating: Optional[int] = None
-
-
-my_posts = [
-    {"title": "We are new post", "id": 1, "content": "This is our content"},
-    {"title": "We are 2nd post", "id": 2, "content": "This is our 2nd content"},
-]
-
-
-def find_post(post_id):
-    for p in my_posts:
-        if p["id"] == post_id:
-            return p
-
-
-def find_index_post(post_id):
-    for i, p in enumerate(my_posts):
-        if p["id"] == post_id:
-            return i
 
 
 @app.get("/")
@@ -37,51 +14,62 @@ def root():
 
 
 @app.get("/posts")
-def get_posts():
-    return {"data": my_posts}
+def get_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return {"data": posts}
 
 
 @app.get("/posts/latest")
-def latest_posts():
-    post = my_posts[-1]
-    return {"data": post}
+def latest_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    latest = posts[-1]
+    return {"data": latest}
 
 
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response):
-    post = find_post(id)
+def get_post(id: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id).first()
+
     if not post:
-        # response.status_code = status.HTTP_404_NOT_FOUND
-        # return {"message": "Not found"}
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
     return {"post_details": post}
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post):
-    post_dict = post.dict()
-    post_dict["id"] = randrange(1, 10000000)
-    my_posts.append(post_dict)
-    return {"data": post_dict}
+def create_post(post: schemas.CreatePost, db: Session = Depends(get_db)):
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+    return {"data": new_post}
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    index = find_index_post(id)
-    if index is None:
+def delete_post(id: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id)
+    if post.first() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    my_posts.pop(index)
+    post.delete()
+    db.commit()
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.put("/posts/{id}", status_code=status.HTTP_201_CREATED)
-def update_post(id: int, post: Post):
-    index = find_index_post(id)
-    if index is None:
+def update_post(id: int, post: schemas.CreatePost, db: Session = Depends(get_db)):
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    updated_post = post_query.first()
+
+    if updated_post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    post_dict = post.dict()
-    post_dict["id"] = id
-    my_posts[index] = post_dict
-    return my_posts[index]
+    post_query.update(post.dict(), synchronize_session=False)
+    db.commit()
+    return post_query.first()
+
+
+@app.get("/sqlalchemy")
+def test_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return {"data": posts}
