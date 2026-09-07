@@ -1,96 +1,177 @@
-from fastapi import HTTPException, status, Depends, APIRouter, Response
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import oauth2
 from .. import models, schemas
 from ..database import get_db
 
 
-router = APIRouter(prefix="/posts", tags=["Posts"])
+router = APIRouter(
+    prefix="/posts",
+    tags=["Posts"],
+)
 
 
-@router.get("/", response_model=list[schemas.PostResponse])
+# Dependencies
+DBSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[
+    schemas.TokenData,
+    Depends(oauth2.get_current_user),
+]
+
+
+# --------------------------------------------------
+# GET ALL POSTS
+# --------------------------------------------------
+@router.get(
+    "/",
+    response_model=list[schemas.PostResponse],
+)
 def get_posts(
-    db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    db: DBSession,
+    current_user: CurrentUser,
 ):
     posts = db.query(models.Post).all()
     return posts
 
 
-@router.get("/latest", response_model=schemas.PostResponse)
-def latest_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    latest = posts[-1]
+# --------------------------------------------------
+# GET LATEST POST
+# --------------------------------------------------
+@router.get(
+    "/latest",
+    response_model=schemas.PostResponse,
+)
+def latest_posts(
+    db: DBSession,
+):
+    latest = db.query(models.Post).order_by(models.Post.created_at.desc()).first()
+
+    if latest is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No posts found",
+        )
+
     return latest
 
 
-@router.get("/{id}", response_model=schemas.PostResponse)
+# --------------------------------------------------
+# TEST SQLALCHEMY
+# --------------------------------------------------
+@router.get("/sqlalchemy")
+def test_posts(
+    db: DBSession,
+):
+    posts = db.query(models.Post).all()
+    return posts
+
+
+# --------------------------------------------------
+# GET SINGLE POST
+# --------------------------------------------------
+@router.get(
+    "/{id}",
+    response_model=schemas.PostResponse,
+)
 def get_post(
     id: int,
-    db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    db: DBSession,
+    current_user: CurrentUser,
 ):
     post = db.query(models.Post).filter(models.Post.id == id).first()
 
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found",
+        )
 
     return post
 
 
+# --------------------------------------------------
+# CREATE POST
+# --------------------------------------------------
 @router.post(
-    "/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=schemas.PostResponse,
 )
 def create_post(
     post: schemas.CreatePost,
-    db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    db: DBSession,
+    current_user: CurrentUser,
 ):
-    new_post = models.Post(**post.model_dump())
+    new_post = models.Post(
+        **post.model_dump(),
+    )
+
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
+
     return new_post
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+# --------------------------------------------------
+# DELETE POST
+# --------------------------------------------------
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def delete_post(
     id: int,
-    db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    db: DBSession,
+    current_user: CurrentUser,
 ):
-    post = db.query(models.Post).filter(models.Post.id == id)
-    if post.first() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    post_query = db.query(models.Post).filter(models.Post.id == id)
 
-    post.delete()
+    post = post_query.first()
+
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found",
+        )
+
+    post_query.delete(synchronize_session=False)
+
     db.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+# --------------------------------------------------
+# UPDATE POST
+# --------------------------------------------------
 @router.put(
     "/{id}",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     response_model=schemas.PostResponse,
 )
 def update_post(
     id: int,
     post: schemas.CreatePost,
-    db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    db: DBSession,
+    current_user: CurrentUser,
 ):
     post_query = db.query(models.Post).filter(models.Post.id == id)
-    updated_post = post_query.first()
 
-    if updated_post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    post_query.update(post.dict(), synchronize_session=False)
+    existing_post = post_query.first()
+
+    if existing_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found",
+        )
+
+    post_query.update(
+        post.model_dump(),
+        synchronize_session=False,
+    )
+
     db.commit()
+
     return post_query.first()
-
-
-@router.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return posts
