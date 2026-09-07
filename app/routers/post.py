@@ -21,13 +21,28 @@ CurrentUser = Annotated[
 
 
 # --------------------------------------------------
-# GET ALL POSTS
+# GET ALL POSTS by logged in user
 # --------------------------------------------------
 @router.get(
     "/",
     response_model=list[schemas.PostResponse],
 )
 def get_posts(
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
+    return posts
+
+
+# --------------------------------------------------
+# GET ALL POSTS
+# --------------------------------------------------
+@router.get(
+    "/all",
+    response_model=list[schemas.PostResponse],
+)
+def get_all_posts(
     db: DBSession,
     current_user: CurrentUser,
 ):
@@ -85,6 +100,12 @@ def get_post(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found",
+        )
+
+    if post.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not Authorized to Perform this actions",
         )
 
     return post
