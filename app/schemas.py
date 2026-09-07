@@ -9,8 +9,20 @@ class PostBase(BaseModel):
     published: bool = True
 
 
+class User(BaseModel):
+    email: str
+
+
 class CreatePost(PostBase):
     pass
+
+
+class UserResponse(User):
+    id: int
+    email: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class PostResponse(PostBase):
@@ -20,25 +32,14 @@ class PostResponse(PostBase):
     published: bool
     created_at: datetime
     owner_id: int
+    owner: UserResponse
 
     model_config = {"from_attributes": True}
-
-
-class User(BaseModel):
-    email: str
 
 
 class CreateUser(User):
     email: EmailStr
     password: str
-
-
-class UserResponse(User):
-    id: int
-    email: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class UserLogin(BaseModel):
