@@ -104,6 +104,7 @@ def create_post(
     current_user: CurrentUser,
 ):
     new_post = models.Post(
+        owner_id=current_user.id,
         **post.model_dump(),
     )
 
@@ -135,6 +136,11 @@ def delete_post(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found",
         )
+    if post.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not Authorized to Perform this actions",
+        )
 
     post_query.delete(synchronize_session=False)
 
@@ -165,6 +171,11 @@ def update_post(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found",
+        )
+    if existing_post.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not Authorized to Perform this actions",
         )
 
     post_query.update(
