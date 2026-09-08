@@ -1,6 +1,7 @@
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app import oauth2
 from .. import models, schemas
 from ..database import get_db
@@ -46,6 +47,19 @@ def get_posts(
     )
     return posts
 
+
+@router.get("/postsvote", response_model=list[schemas.PostVoteRespone])
+def get_posts_vote(
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    results = (
+        db.query(models.Post, func.count(models.Vote.post_id).label("votes"))
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
+        .group_by(models.Post.id)
+        .all()
+    )
+    return results
 
 # --------------------------------------------------
 # GET ALL POSTS

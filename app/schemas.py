@@ -37,6 +37,13 @@ class PostResponse(PostBase):
     model_config = {"from_attributes": True}
 
 
+class PostVoteRespone(BaseModel):
+    Post: PostResponse
+    votes: int
+
+    model_config = {"from_attributes": True}
+
+
 class CreateUser(User):
     email: EmailStr
     password: str
