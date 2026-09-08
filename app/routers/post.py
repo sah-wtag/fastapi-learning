@@ -48,6 +48,9 @@ def get_posts(
     return posts
 
 
+# --------------------------------------------------
+# GET ALL POSTS + Vote by logged in user
+# --------------------------------------------------
 @router.get("/postsvote", response_model=list[schemas.PostVoteRespone])
 def get_posts_vote(
     db: DBSession,
@@ -60,6 +63,7 @@ def get_posts_vote(
         .all()
     )
     return results
+
 
 # --------------------------------------------------
 # GET ALL POSTS
