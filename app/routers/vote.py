@@ -19,6 +19,12 @@ CurrentUser = Annotated[
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def vote(vote: schemas.Vote, db: DBSession, current_user: CurrentUser):
+    post = db.query(models.Post).filter(models.Post.id == vote.post_id).first()
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No associated posts found"
+        )
+
     vote_query = db.query(models.Vote).filter(
         models.Vote.post_id == vote.post_id, models.Vote.user_id == current_user.id
     )
