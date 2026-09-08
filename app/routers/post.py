@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import oauth2
@@ -30,8 +30,20 @@ CurrentUser = Annotated[
 def get_posts(
     db: DBSession,
     current_user: CurrentUser,
+    limit: int = 10,
+    skip: int = 0,
+    search: Optional[str] = "",
 ):
-    posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
+    posts = (
+        db.query(models.Post)
+        .filter(
+            models.Post.owner_id == current_user.id
+            and models.Post.title.contains(search)
+        )
+        .limit(limit)
+        .offset(skip)
+        .all()
+    )
     return posts
 
 
