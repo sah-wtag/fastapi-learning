@@ -1,5 +1,6 @@
 from app import schemas
 from jose import jwt
+import pytest
 
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
@@ -32,3 +33,18 @@ def test_login_user(client, test_user):
     assert user_id == test_user["id"]
     assert login_res.token_type == "bearer"
     assert res.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "email, password, status_code",
+    [
+        ("sandman@gmail.com", "wrong", 403),
+        ("wrong@gmail.com", "asd123", 403),
+        ("wrong@gmail.com", "wrong", 403),
+        (None, "asd123", 422),
+        ("sandman@gmail.com", None, 422),
+    ],
+)
+def test_incorrect_login(client, test_user, email, password, status_code):
+    res = client.post("/login", data={"username": email, "password": password})
+    assert res.status_code == status_code
