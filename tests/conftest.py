@@ -12,6 +12,17 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+@pytest.fixture
+def test_user(client):
+    user_data = {"email": "sandman@gmail.com", "password": "asd123"}
+    res = client.post("/users/", json=user_data)
+
+    assert res.status_code == 201
+
+    new_user = res.json()
+    return new_user
+
+
 @pytest.fixture()
 def session():
     Base.metadata.create_all(bind=engine)
