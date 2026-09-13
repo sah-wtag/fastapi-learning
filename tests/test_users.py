@@ -1,5 +1,22 @@
+import pytest
 from app import schemas
 from .database import client, session
+from jose import jwt
+
+SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+
+@pytest.fixture
+def test_user(client):
+    user_data = {"email": "sandman@gmail.com", "password": "asd123"}
+    res = client.post("/users/", json=user_data)
+
+    assert res.status_code == 201
+
+    new_user = res.json()
+    return new_user
 
 
 def test_root(client):
@@ -17,12 +34,14 @@ def test_create_user(client):
     assert res.status_code == 201
 
 
-def test_login_user(client):
-    # client.post(
-    #     "/users/", json={"email": "sandman@gmail.com", "password": "asd123"}
-    # )
+def test_login_user(client, test_user):
     res = client.post(
         "/login", data={"username": "sandman@gmail.com", "password": "asd123"}
     )
-    print(res.json())
+    login_res = schemas.Token(**res.json())
+    payload = jwt.decode(login_res.access_token, SECRET_KEY, algorithms=[ALGORITHM])
+    user_id = payload.get("user_id")
+
+    assert user_id == test_user["id"]
+    assert login_res.token_type == "bearer"
     assert res.status_code == 200
