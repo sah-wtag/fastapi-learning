@@ -1,3 +1,5 @@
+import json
+import pytest
 from app import schemas
 
 
@@ -43,3 +45,25 @@ def test_get_one_post_exist(authorized_client, test_posts):
     assert post.published == test_posts[0].published
     assert post.owner_id == test_posts[0].owner_id
     assert post.owner.email == "sandman@gmail.com"
+
+
+@pytest.mark.parametrize(
+    "title, content, published",
+    [
+        ("Awesome new title", "New content", True),
+        ("Awesome new title 2nd", "New content 2nd", False),
+        ("Awesome new title 3rd", "New content 3rd", True),
+    ],
+)
+def test_create_post(
+    authorized_client, test_user, test_posts, title, content, published
+):
+    res = authorized_client.post(
+        "/posts/", json={"title": title, "content": content, "published": published}
+    )
+    created_post = schemas.PostResponse(**res.json())
+    assert res.status_code == 201
+    assert created_post.title == title
+    assert created_post.content == content
+    assert created_post.published == published
+    assert created_post.owner_id == test_user["id"]
