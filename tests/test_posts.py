@@ -108,3 +108,51 @@ def test_delete_other_user_post(authorized_client, test_user, test_posts):
     res = authorized_client.delete(f"/posts/{test_posts[2].id}")
 
     assert res.status_code == 403
+
+
+def test_update_post(authorized_client, test_user, test_posts):
+    data = {
+        "title": "new updated post",
+        "content": "new updated content",
+        "published": True,
+    }
+
+    res = authorized_client.put(f"/posts/{test_posts[0].id}", json=data)
+
+    updated_post = schemas.PostResponse(**res.json())
+    assert res.status_code == 200
+    assert updated_post.title == data["title"]
+    assert updated_post.content == data["content"]
+    assert updated_post.published == data["published"]
+    assert updated_post.owner_id == test_user["id"]
+
+
+def test_other_user_update_post(authorized_client, test_user, test_posts):
+    data = {
+        "title": "new updated post",
+        "content": "new updated content",
+    }
+
+    res = authorized_client.put(f"/posts/{test_posts[2].id}", json=data)
+
+    assert res.status_code == 403
+
+
+def test_unauthorized_user_update_post(client, test_user, test_posts):
+    data = {
+        "title": "new updated post",
+        "content": "new updated content",
+    }
+    res = client.put(f"/posts/{test_posts[0].id}", json=data)
+
+    assert res.status_code == 401
+
+
+def test_update_non_exist_post(authorized_client, test_user, test_posts):
+    data = {
+        "title": "new updated post",
+        "content": "new updated content",
+    }
+    res = authorized_client.put("/posts/11111", json=data)
+
+    assert res.status_code == 404
