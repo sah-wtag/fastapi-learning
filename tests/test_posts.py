@@ -80,3 +80,15 @@ def test_create_post_for_default_published(authorized_client, test_user, test_po
     assert created_post.content == "new content"
     assert created_post.published is True
     assert created_post.owner_id == test_user["id"]
+
+
+def test_unauthorized_user_create_post(client, test_user, test_posts):
+    res = client.post("/posts/", json={"title": "new post", "content": "new content"})
+
+    assert res.status_code == 401
+
+
+def test_unauthorized_user_delete_post(client, test_user, test_posts):
+    res = client.delete(f"/posts/{test_posts[0].id}")
+
+    assert res.status_code == 401
