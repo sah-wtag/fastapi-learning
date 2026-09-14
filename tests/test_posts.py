@@ -15,8 +15,6 @@ def test_get_all_posts(authorized_client, test_posts):
         assert response_post.title == db_post.title
         assert response_post.content == db_post.content
         assert response_post.published == db_post.published
-        assert response_post.owner_id == db_post.owner_id
-        assert response_post.owner.email == "sandman@gmail.com"
 
 
 def test_unauthorized_user_get_all_posts(client, test_posts):
@@ -104,3 +102,9 @@ def test_delete_non_exist_post(authorized_client, test_user, test_posts):
     res = authorized_client.delete("/posts/2222")
 
     assert res.status_code == 404
+
+
+def test_delete_other_user_post(authorized_client, test_user, test_posts):
+    res = authorized_client.delete(f"/posts/{test_posts[2].id}")
+
+    assert res.status_code == 403

@@ -25,6 +25,17 @@ def test_user(client):
     return new_user
 
 
+@pytest.fixture
+def test_user_2(client):
+    user_data = {"email": "sandman1@gmail.com", "password": "asd123"}
+    res = client.post("/users/", json=user_data)
+
+    assert res.status_code == 201
+
+    new_user = res.json()
+    return new_user
+
+
 @pytest.fixture()
 def session():
     Base.metadata.create_all(bind=engine)
@@ -62,7 +73,7 @@ def authorized_client(client, token):
 
 
 @pytest.fixture
-def test_posts(test_user, session):
+def test_posts(test_user, test_user_2, session):
     posts_data = [
         {
             "title": "First post",
@@ -77,7 +88,7 @@ def test_posts(test_user, session):
         {
             "title": "3rd post",
             "content": " 3rd content",
-            "owner_id": test_user["id"],
+            "owner_id": test_user_2["id"],
         },
     ]
 

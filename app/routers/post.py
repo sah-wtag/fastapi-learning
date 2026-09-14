@@ -37,10 +37,7 @@ def get_posts(
 ):
     posts = (
         db.query(models.Post)
-        .filter(
-            models.Post.owner_id == current_user.id
-            and models.Post.title.contains(search)
-        )
+        .filter(models.Post.title.contains(search))
         .limit(limit)
         .offset(skip)
         .all()
