@@ -62,6 +62,7 @@ def authorized_client(client, token):
 
 
 @pytest.fixture
+def test_posts(test_user, session):
     posts_data = [
         {
             "title": "First post",
